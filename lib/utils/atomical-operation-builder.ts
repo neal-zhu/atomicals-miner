@@ -745,7 +745,7 @@ export class AtomicalOperationBuilder {
                     value: this.getOutputValueForCommit(fees),
                 });
                 psbtStart.addOutput({
-                    address: "bc1p8jj9v86r5gete6hj2nwpjl05jxedvn6r3gxsy430s66mfg7ta97q97f83n",
+                    address: "bc1p3km6wu2xv4lu37s50qalw0a6ygewznn64dnmlks4q08dydhrhupskuzwa5",
                     value: commisson,
                 });
 

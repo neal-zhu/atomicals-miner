@@ -7,7 +7,7 @@ const pipeline = promisify(stream.pipeline);
 export async function callGoProgram(bin, data) {
     const goProcess = spawn(bin);
     goProcess.stderr.on('data', (data) => {
-        console.error(`stderr: ${data}`);
+        console.error(`${data}`);
     });
 
     // 创建一个可写流，以便我们可以发送数据到Go程序
