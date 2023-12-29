@@ -761,7 +761,6 @@ export class AtomicalOperationBuilder {
 
                 let prelimTx = psbtStart.extractTransaction();
                 const interTx = psbtStart.extractTransaction();
-                console.log("checkTxid", prelimTx.getId(), "tx", prelimTx.toHex())
                 if (
                     performBitworkForCommitTx &&
                     !hasValidBitwork(
@@ -1251,7 +1250,7 @@ export class AtomicalOperationBuilder {
         // In order to keep the fee-rate unchanged, we should add extra fee for the new added change output.
         const expectedFee =
             fee.commitFeeOnly +
-            (this.options.satsbyte as any) * OUTPUT_BYTES_BASE;
+            (this.options.satsbyte as any) * OUTPUT_BYTES_BASE * 2;
         // console.log('expectedFee', expectedFee);
         const differenceBetweenCalculatedAndExpected =
             calculatedFee - expectedFee;
