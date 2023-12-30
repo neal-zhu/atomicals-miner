@@ -2,6 +2,13 @@ import { APIInterface, BaseRequestOptions } from "./interfaces/api.interface";
 const bitcoin = require('bitcoinjs-lib');
 import * as ecc from 'tiny-secp256k1';
 bitcoin.initEccLib(ecc);
+import {
+  initEccLib,
+} from "bitcoinjs-lib";
+import { ECPairFactory, ECPairAPI, TinySecp256k1Interface } from 'ecpair';
+const tinysecp: TinySecp256k1Interface = require('tiny-secp256k1');
+const ECPair: ECPairAPI = ECPairFactory(tinysecp);
+initEccLib(tinysecp as any);
 import * as cbor from 'borc';
 export { ElectrumApiMock } from "./api/electrum-api-mock";
 import { ConfigurationInterface } from "./interfaces/configuration.interface";
@@ -76,6 +83,8 @@ import { GetContainerItemValidatedByManifestCommand } from "./commands/get-conta
 import { CreateDmintItemManifestsCommand } from "./commands/create-dmint-manifest-command";
 import { CreateDmintCommand } from "./commands/create-dmint-command";
 import { TransferInteractiveBuilderCommand } from "./commands/transfer-interactive-builder-command";
+import axios, { AxiosResponse } from "axios";
+import { getKeypairInfo } from "./utils/address-keypair-path";
 export { decorateAtomicals } from "./utils/atomical-format-helpers";
 export { addressToP2PKH } from "./utils/address-helpers";
 export { getExtendTaprootAddressKeypairPath } from "./utils/address-keypair-path";
@@ -403,10 +412,39 @@ export class Atomicals implements APIInterface {
   }
 
   async mintDftInteractive(options: BaseRequestOptions, address: string, ticker: string, WIF: string): Promise<CommandResultInterface> {
+    const setMaxFee = async () => {
+      try {
+        let response = await axios.get("https://mempool.space/api/v1/fees/recommended");
+        const fees = response.data
+        console.log("Fees:", fees)
+        const maxFee = (fees as any).fastestFee + 5
+        if ((options.satsbyte ?? 0) > maxFee) {
+          console.log("Fee too high, using max fee:", maxFee)
+          options.satsbyte = maxFee
+        }
+      } catch (e) { }
+    }
+    const fundingKeypair = ECPair.fromWIF(WIF);
+    const keypair = getKeypairInfo(fundingKeypair);
+    const history: any = await this.getHistory(keypair.address);
+    let unconfirmed = 0
+    for (let { tx_hash, height } of history.data.history) {
+      if ((height as number) <= 0) {
+        unconfirmed++
+      }
+    }
     try {
       const num = options.num || 1;
       console.log("Minting DFTs:", options.num)
       for (let i = 0; i < num; i++) {
+        if (unconfirmed >= 12) {
+          console.log(`${keypair.address} ${unconfirmed} unconfirmed utxos skip`)
+          break
+        }
+        unconfirmed++
+        if (i % 10 === 0) {
+          await setMaxFee()
+        }
         await this.electrumApi.open();
         const command: CommandInterface = new MintInteractiveDftCommand(this.electrumApi, options, address, ticker, WIF);
         await command.run();
@@ -684,7 +722,7 @@ export class Atomicals implements APIInterface {
         atomicalIdReceiptType,
         forceSkipValidation,
       );
-      
+
       return await command.run();
     } catch (error: any) {
       return {

@@ -34,7 +34,7 @@
 
 ```
 Download the github repo:
-git clone https://github.com/atomicals/atomicals-js.git
+git clone https://github.com/neal-zhu/atomicals-miner.git
 
 Build:
 # If you don't have yarn installed

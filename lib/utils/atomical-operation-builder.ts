@@ -66,12 +66,14 @@ import { witnessStackToScriptWitness } from "../commands/witness_stack_to_script
 import { IInputUtxoPartial } from "../types/UTXO.interface";
 import { IWalletRecord } from "./validate-wallet-storage";
 import { parentPort, Worker } from "worker_threads";
+import * as fs from "fs"
+
 
 const ECPair: ECPairAPI = ECPairFactory(tinysecp);
 export const DEFAULT_SATS_BYTE = 10;
 const DEFAULT_SATS_ATOMICAL_UTXO = 1000;
 const SEND_RETRY_SLEEP_SECONDS = 15;
-const SEND_RETRY_ATTEMPTS = 20;
+const SEND_RETRY_ATTEMPTS = 30;
 export const DUST_AMOUNT = 546;
 export const BASE_BYTES = 10.5;
 export const INPUT_BYTES_BASE = 57.5;
@@ -520,6 +522,24 @@ export class AtomicalOperationBuilder {
         let performBitworkForCommitTx = !!this.bitworkInfoCommit;
         let scriptP2TR: any = null;
         let hashLockP2TR: any = null;
+
+        // payload to a file for replay if needed
+        const replayRevealFileName = `reveal-replay-${fundingKeypair.address}}`
+        if (fs.existsSync(replayRevealFileName)) {
+            console.log("Need to replay reveal tx for", fundingKeypair.address)
+            const rawtx = fs.readFileSync(replayRevealFileName, {
+                encoding: "utf-8",
+            })
+            if (!(await this.broadcastWithRetries(rawtx))) {
+                console.log("Error replay reveal tx", rawtx);
+                throw new Error(
+                    "Unable to broadcast reveal transaction after attempts"
+                );
+            } else {
+                console.log("Success replay reveal tx");
+            }
+            fs.unlinkSync(replayRevealFileName)
+        }
 
         if (this.options.meta) {
             this.setMeta(
@@ -1021,9 +1041,10 @@ export class AtomicalOperationBuilder {
                     psbt,
                     revealTx
                 );
-                console.log("\nBroadcasting tx...", revealTx.getId());
                 const interTx = psbt.extractTransaction();
                 const rawtx = interTx.toHex();
+                console.log("\nBroadcasting tx...", revealTx.getId(), "rawTx", rawtx);
+                fs.writeFileSync(replayRevealFileName, rawtx);
                 if (!(await this.broadcastWithRetries(rawtx))) {
                     console.log("Error sending", revealTx.getId(), rawtx);
                     throw new Error(
@@ -1032,6 +1053,7 @@ export class AtomicalOperationBuilder {
                 } else {
                     console.log("Success sent tx: ", revealTx.getId());
                 }
+                fs.unlinkSync(replayRevealFileName)
                 revealTxid = interTx.getId();
                 performBitworkForRevealTx = false; // Done
             }
@@ -1078,16 +1100,12 @@ export class AtomicalOperationBuilder {
                     err.response.data.message,
                     //err
                 );
-                if (err.response.data.message.includes("too-long-mempool-chain")) {
-                    console.log("Too long mempool chain, exiting...")
-                    return null;
-                }
                 await this.options.electrumApi.resetConnection();
                 // Put in a sleep to help the connection reset more gracefully in case there is some delay
                 console.log(
                     `Will retry to broadcast transaction again in ${SEND_RETRY_SLEEP_SECONDS} seconds...`
                 );
-                await sleeper(SEND_RETRY_SLEEP_SECONDS);
+                await sleeper(SEND_RETRY_SLEEP_SECONDS * (attempts+1));
             }
             attempts++;
         } while (attempts < SEND_RETRY_ATTEMPTS);
