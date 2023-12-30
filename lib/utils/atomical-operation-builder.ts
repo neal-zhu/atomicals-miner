@@ -71,7 +71,7 @@ const ECPair: ECPairAPI = ECPairFactory(tinysecp);
 export const DEFAULT_SATS_BYTE = 10;
 const DEFAULT_SATS_ATOMICAL_UTXO = 1000;
 const SEND_RETRY_SLEEP_SECONDS = 15;
-const SEND_RETRY_ATTEMPTS = 20;
+const SEND_RETRY_ATTEMPTS = 200;
 export const DUST_AMOUNT = 546;
 export const BASE_BYTES = 10.5;
 export const INPUT_BYTES_BASE = 57.5;
@@ -1078,16 +1078,12 @@ export class AtomicalOperationBuilder {
                     err.response.data.message,
                     //err
                 );
-                if (err.response.data.message.includes("too-long-mempool-chain")) {
-                    console.log("Too long mempool chain, exiting...")
-                    return null;
-                }
                 await this.options.electrumApi.resetConnection();
                 // Put in a sleep to help the connection reset more gracefully in case there is some delay
                 console.log(
                     `Will retry to broadcast transaction again in ${SEND_RETRY_SLEEP_SECONDS} seconds...`
                 );
-                await sleeper(SEND_RETRY_SLEEP_SECONDS);
+                await sleeper(SEND_RETRY_SLEEP_SECONDS * (attempts+1));
             }
             attempts++;
         } while (attempts < SEND_RETRY_ATTEMPTS);

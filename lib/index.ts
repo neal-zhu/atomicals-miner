@@ -76,6 +76,7 @@ import { GetContainerItemValidatedByManifestCommand } from "./commands/get-conta
 import { CreateDmintItemManifestsCommand } from "./commands/create-dmint-manifest-command";
 import { CreateDmintCommand } from "./commands/create-dmint-command";
 import { TransferInteractiveBuilderCommand } from "./commands/transfer-interactive-builder-command";
+import axios, { AxiosResponse } from "axios";
 export { decorateAtomicals } from "./utils/atomical-format-helpers";
 export { addressToP2PKH } from "./utils/address-helpers";
 export { getExtendTaprootAddressKeypairPath } from "./utils/address-keypair-path";
@@ -403,10 +404,23 @@ export class Atomicals implements APIInterface {
   }
 
   async mintDftInteractive(options: BaseRequestOptions, address: string, ticker: string, WIF: string): Promise<CommandResultInterface> {
+    const setMaxFee = async () => {
+      let response = await axios.get("https://mempool.space/api/v1/fees/recommended");
+      const fees = response.data
+      console.log("Fees:", fees)
+      const maxFee = (fees as any).fastestFee + 5
+      if ((options.satsbyte ?? 0) > maxFee) {
+        console.log("Fee too high, using max fee:", maxFee)
+        options.satsbyte = maxFee
+      }
+    }
     try {
       const num = options.num || 1;
       console.log("Minting DFTs:", options.num)
       for (let i = 0; i < num; i++) {
+        if (i % 10 === 0) {
+          await setMaxFee()
+        }
         await this.electrumApi.open();
         const command: CommandInterface = new MintInteractiveDftCommand(this.electrumApi, options, address, ticker, WIF);
         await command.run();
