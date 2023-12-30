@@ -14,6 +14,7 @@ import { toOutputScript } from 'bitcoinjs-lib/src/address';
 import { compactIdToOutpoint, outpointToCompactId } from './utils/atomical-format-helpers';
 import * as quotes from 'success-motivational-quotes';
 import * as chalk from 'chalk';
+import axios from 'axios';
 
 dotenv.config();
 
