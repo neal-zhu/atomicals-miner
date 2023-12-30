@@ -26,3 +26,5 @@ commit-command-output*.json
 *.sln
 .gitkeep
 atomicals-go/main
+fastbin
+.env
