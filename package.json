@@ -87,5 +87,8 @@
   "directories": {
     "lib": "lib",
     "test": "test"
+  },
+  "pkg": {
+    "assets": ["./bin"]
   }
 }
