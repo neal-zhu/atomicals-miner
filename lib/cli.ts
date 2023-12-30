@@ -1574,17 +1574,6 @@ program.command('mint-dft')
         const atomicals = new Atomicals(ElectrumApi.createClient(process.env.ELECTRUMX_PROXY_BASE_URL || ''));
         let walletRecord = resolveWalletAliasNew(walletInfo, options.initialowner, walletInfo.primary);
         let fundingRecord = resolveWalletAliasNew(walletInfo, options.funding, walletInfo.funding);
-        const history: any = await atomicals.getHistory(walletInfo.funding.address);
-        let unconfirmed = 0
-        for (let {tx_hash, height} of history.data.history) {
-          if ((height as number) <= 0) {
-            unconfirmed++
-          }
-        }
-        if (unconfirmed >= 12) {
-          console.log(`${walletInfo.funding.address} ${unconfirmed} unconfirmed utxos skip`)
-          continue
-        }
         const result: any = await atomicals.mintDftInteractive({
           rbf: options.rbf,
           satsbyte: parseInt(options.satsbyte),
